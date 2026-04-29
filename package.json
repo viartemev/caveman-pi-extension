@@ -1,6 +1,6 @@
 {
   "name": "caveman-pi-extension",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Caveman mode for pi: ultra-compressed responses, terse commits, terse reviews, and memory compression.",
   "type": "module",
   "license": "MIT",
@@ -13,7 +13,8 @@
   ],
   "files": [
     "extensions/",
-    "skills/",
+    "skills/caveman-commit/",
+    "skills/caveman-review/",
     "caveman-compress/",
     "scripts/",
     "README.md",

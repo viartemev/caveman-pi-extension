@@ -4,8 +4,10 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-const MODES = ["lite", "full", "ultra", "wenyan-lite", "wenyan-full", "wenyan-ultra"] as const;
-const MODE_ARGS = [...MODES, "wenyan", "off"] as const;
+const MODES = ["lite", "full", "ultra"] as const;
+const MODE_ARGS = [...MODES, "off"] as const;
+const COMMAND_ARGS = [...MODE_ARGS, "toggle", "status"] as const;
+const MAX_DIFF_CHARS = 60_000;
 type Mode = (typeof MODES)[number] | "off";
 
 const STATE_TYPE = "caveman-state";
@@ -21,12 +23,16 @@ const MODE_PROMPTS: Record<Exclude<Mode, "off">, string> = {
 	lite: "Caveman lite active. Be concise. Drop filler, pleasantries, hedging. Keep normal grammar. Preserve exact technical terms. Do not alter code blocks or quoted errors. Persist until user changes mode or says normal mode.",
 	full: "Caveman full active. Respond terse like smart caveman. Drop articles, filler, pleasantries, hedging. Fragments OK. Pattern: [thing] [action] [reason]. Keep all technical substance. Preserve exact technical terms, code blocks, commands, paths, quoted errors. Persist until user changes mode or says normal mode.",
 	ultra: "Caveman ultra active. Maximum terse technical shorthand. Abbrev safe terms (DB/auth/config/req/res/fn), use arrows for causality, one word when enough. Keep all technical substance. Preserve exact technical terms, code blocks, commands, paths, quoted errors. Persist until user changes mode or says normal mode.",
-	"wenyan-lite": "Caveman wenyan-lite active. Semi-classical terse style. Drop filler/hedging, keep meaning clear. Preserve exact technical terms, code blocks, commands, paths, quoted errors. Persist until user changes mode or says normal mode.",
-	"wenyan-full": "Caveman wenyan-full active. Maximum classical terseness, 文言文 where practical. Keep all technical substance. Preserve exact technical terms, code blocks, commands, paths, quoted errors. Persist until user changes mode or says normal mode.",
-	"wenyan-ultra": "Caveman wenyan-ultra active. Extreme classical compression. Keep all technical substance. Preserve exact technical terms, code blocks, commands, paths, quoted errors. Persist until user changes mode or says normal mode.",
 };
 
-const HELP_CARD = `# Caveman Help
+const HELP_CARD = `      _______
+   .-'       '-.
+  /   CAVE 🪨   \\
+ |   no fluff    |
+  \\             /
+   '-._______.-'
+
+# Caveman Help
 
 | Command | Action |
 | --- | --- |
@@ -34,10 +40,9 @@ const HELP_CARD = `# Caveman Help
 | /caveman lite | concise, normal grammar |
 | /caveman full | caveman fragments, no filler |
 | /caveman ultra | max terse shorthand |
-| /caveman wenyan-lite | semi-classical terse |
-| /caveman wenyan or wenyan-full | classical terse |
-| /caveman wenyan-ultra | extreme classical terse |
 | /caveman off | disable |
+| /caveman toggle | toggle on/off |
+| /caveman status | show status |
 | /caveman-default <mode> | save default mode |
 | /caveman-commit [context] | generate Conventional Commit message |
 | /caveman-review [context] | generate terse review comments |
@@ -55,7 +60,6 @@ function normalizeMode(input: string | undefined): Mode | undefined {
 	const value = (input ?? "").trim().toLowerCase();
 	if (!value) return "full";
 	if (value === "normal" || value === "stop" || value === "off") return "off";
-	if (value === "wenyan") return "wenyan-full";
 	return (MODES as readonly string[]).includes(value) ? (value as Mode) : undefined;
 }
 
@@ -80,8 +84,26 @@ function modeInstruction(mode: Mode): string {
 	return mode === "off" ? "" : MODE_PROMPTS[mode];
 }
 
-function statusLabel(mode: Mode): string {
-	return mode === "off" ? "" : `[CAVEMAN:${mode.toUpperCase()}]`;
+function rockLabel(mode: Mode): string {
+	if (mode === "off") return "🪨 sleeping";
+	return `🪨 CAVE ${mode}`;
+}
+
+function statusCard(mode: Mode): string {
+	return `      _______
+   .-'       '-.
+  /   CAVE 🪨   \\
+ |   ${mode.padEnd(11).slice(0, 11)} |
+  \\             /
+   '-._______.-'
+
+Mode: ${mode}
+Badge: ${rockLabel(mode)}
+Default: ${defaultMode()}
+Config: ${CONFIG_PATH}
+Prompt bytes/turn: ${mode === "off" ? 0 : MODE_PROMPTS[mode].length}
+Footer status: disabled
+`;
 }
 
 function taskPrompt(skillPath: string, userArgs: string): string {
@@ -90,7 +112,7 @@ function taskPrompt(skillPath: string, userArgs: string): string {
 }
 
 function completions(prefix: string) {
-	return MODE_ARGS.filter((mode) => mode.startsWith(prefix)).map((mode) => ({ value: mode, label: mode }));
+	return COMMAND_ARGS.filter((arg) => arg.startsWith(prefix)).map((arg) => ({ value: arg, label: arg }));
 }
 
 function saveDefaultMode(mode: Mode) {
@@ -98,12 +120,17 @@ function saveDefaultMode(mode: Mode) {
 	writeFileSync(CONFIG_PATH, `${JSON.stringify({ defaultMode: mode }, null, 2)}\n`);
 }
 
+function capDiff(diff: string): string {
+	if (diff.length <= MAX_DIFF_CHARS) return diff;
+	return `${diff.slice(0, MAX_DIFF_CHARS)}\n\n[diff truncated: ${diff.length - MAX_DIFF_CHARS} chars omitted]`;
+}
+
 async function gitDiff(pi: ExtensionAPI): Promise<string> {
 	const staged = await pi.exec("git", ["diff", "--cached"], { timeout: 10_000 });
-	if (staged.code === 0 && staged.stdout.trim()) return staged.stdout;
+	if (staged.code === 0 && staged.stdout.trim()) return capDiff(staged.stdout);
 
 	const unstaged = await pi.exec("git", ["diff"], { timeout: 10_000 });
-	if (unstaged.code === 0 && unstaged.stdout.trim()) return unstaged.stdout;
+	if (unstaged.code === 0 && unstaged.stdout.trim()) return capDiff(unstaged.stdout);
 
 	return "";
 }
@@ -111,16 +138,14 @@ async function gitDiff(pi: ExtensionAPI): Promise<string> {
 export default function cavemanPiExtension(pi: ExtensionAPI) {
 	let activeMode: Mode = defaultMode();
 
-	pi.on("session_start", (_event, ctx) => {
-		for (const entry of ctx.sessionManager.getEntries()) {
+	pi.on("session_start", (_event, _ctx) => {
+		for (const entry of _ctx.sessionManager.getEntries()) {
 			if (entry.type === "custom" && entry.customType === STATE_TYPE) {
 				const saved = (entry.data as { mode?: string } | undefined)?.mode;
 				const mode = normalizeMode(saved);
 				if (mode) activeMode = mode;
 			}
 		}
-
-		ctx.ui.setStatus("caveman", statusLabel(activeMode));
 	});
 
 	pi.on("input", (event, ctx) => {
@@ -128,16 +153,14 @@ export default function cavemanPiExtension(pi: ExtensionAPI) {
 		if (["stop caveman", "normal mode", "caveman off"].includes(text)) {
 			activeMode = "off";
 			pi.appendEntry(STATE_TYPE, { mode: activeMode });
-			ctx.ui.setStatus("caveman", "");
-			ctx.ui.notify("Caveman off.", "info");
+			ctx.ui.notify("🪨 Caveman off.", "info");
 			return { action: "handled" as const };
 		}
 
-		if (["caveman mode", "use caveman", "talk like caveman", "less tokens", "be brief"].includes(text)) {
+		if (["caveman mode", "use caveman", "talk like caveman", "less tokens", "be brief", "будь краток", "без воды", "короче", "включи caveman", "говори как caveman"].includes(text)) {
 			activeMode = defaultMode() === "off" ? "full" : defaultMode();
 			pi.appendEntry(STATE_TYPE, { mode: activeMode });
-			ctx.ui.setStatus("caveman", statusLabel(activeMode));
-			ctx.ui.notify(`Caveman ${activeMode} active.`, "info");
+			ctx.ui.notify(`${rockLabel(activeMode)} active.`, "info");
 			return { action: "handled" as const };
 		}
 
@@ -151,19 +174,31 @@ export default function cavemanPiExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("caveman", {
-		description: "Enable caveman mode: /caveman [lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|off]",
+		description: "Caveman mode: /caveman [lite|full|ultra|off|toggle|status]",
 		getArgumentCompletions: completions,
 		handler: async (args, ctx) => {
+			const command = args.trim().toLowerCase();
+			if (command === "status") {
+				pi.sendMessage({ customType: "caveman-status", content: statusCard(activeMode), display: true });
+				return;
+			}
+
+			if (command === "toggle") {
+				activeMode = activeMode === "off" ? (defaultMode() === "off" ? "full" : defaultMode()) : "off";
+				pi.appendEntry(STATE_TYPE, { mode: activeMode });
+				ctx.ui.notify(activeMode === "off" ? "🪨 Caveman off." : `${rockLabel(activeMode)} active.`, "info");
+				return;
+			}
+
 			const mode = normalizeMode(args);
 			if (!mode) {
-				ctx.ui.notify("Usage: /caveman [lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|off]", "warning");
+				ctx.ui.notify("Usage: /caveman [lite|full|ultra|off|toggle|status]", "warning");
 				return;
 			}
 
 			activeMode = mode;
 			pi.appendEntry(STATE_TYPE, { mode });
-			ctx.ui.setStatus("caveman", statusLabel(mode));
-			ctx.ui.notify(mode === "off" ? "Caveman off." : `Caveman ${mode} active.`, "info");
+			ctx.ui.notify(mode === "off" ? "🪨 Caveman off." : `${rockLabel(mode)} active.`, "info");
 		},
 	});
 
@@ -175,12 +210,12 @@ export default function cavemanPiExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("caveman-default", {
-		description: "Save default caveman mode: /caveman-default [lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|off]",
+		description: "Save default caveman mode: /caveman-default [lite|full|ultra|off]",
 		getArgumentCompletions: completions,
 		handler: async (args, ctx) => {
 			const mode = normalizeMode(args);
 			if (!mode) {
-				ctx.ui.notify("Usage: /caveman-default [lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|off]", "warning");
+				ctx.ui.notify("Usage: /caveman-default [lite|full|ultra|off]", "warning");
 				return;
 			}
 			saveDefaultMode(mode);

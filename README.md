@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![pi package](https://img.shields.io/badge/pi-package-blue)](https://github.com/mariozechner/pi-coding-agent)
-[![Version](https://img.shields.io/badge/version-0.2.0-green)](package.json)
+[![Version](https://img.shields.io/badge/version-0.3.0-green)](package.json)
 
 Ultra-compressed communication mode for [`pi`](https://github.com/mariozechner/pi-coding-agent): fewer tokens, same technical substance.
 
@@ -20,9 +20,10 @@ After: Bug in auth middleware. Token expiry check use `<` not `<=`. Fix:
 ## Features
 
 - Persistent caveman response mode across turns
-- Intensity levels: `lite`, `full`, `ultra`, `wenyan-lite`, `wenyan-full`, `wenyan-ultra`
+- Intensity levels: `lite`, `full`, `ultra`
 - Slash commands for quick mode switching
-- Natural-language disable: `normal mode`, `stop caveman`, `caveman off`
+- Rock-themed help/status output (`🪨`), no persistent footer badge
+- Natural-language enable/disable phrases, including Russian terse triggers
 - Bundled skills:
   - terse commit messages
   - terse code review comments
@@ -66,22 +67,27 @@ pi -e ./caveman-pi-extension
 | `/caveman lite` | Tight but normal grammar |
 | `/caveman full` | Classic caveman: fragments, no filler |
 | `/caveman ultra` | Maximum terse technical shorthand |
-| `/caveman wenyan-lite` | Semi-classical terse style |
-| `/caveman wenyan-full` | Classical terse style |
-| `/caveman wenyan-ultra` | Extreme classical compression |
 | `/caveman off` | Disable caveman mode |
+| `/caveman toggle` | Toggle between off and default/full |
+| `/caveman status` | Show rock-themed caveman status |
 | `/caveman-default <mode>` | Save default mode to `~/.config/caveman/config.json` |
-| `/caveman-help` | Show quick reference without model call |
+| `/caveman-help` | Show rock-themed quick reference without model call |
 | `/caveman-commit [context]` | Generate terse Conventional Commit message |
 | `/caveman-review [context]` | Generate one-line actionable review comments |
 | `/caveman-compress <filepath>` | Compress markdown/memory file |
 
-Natural-language disable also works:
+Natural-language control also works:
 
 ```text
 stop caveman
 normal mode
 caveman off
+caveman mode
+use caveman
+be brief
+будь краток
+без воды
+короче
 ```
 
 ## Config
@@ -121,7 +127,7 @@ package.json                # pi package manifest
 
 The pi extension hooks into:
 
-- `session_start` — restores mode and status badge
+- `session_start` — restores mode without footer status noise
 - `input` — handles enable/disable phrases
 - `before_agent_start` — injects compact active-mode rules every turn
 - `registerCommand` — registers slash commands
