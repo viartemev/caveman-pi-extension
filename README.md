@@ -1,54 +1,79 @@
-# pi-caveman
+# Caveman for pi
 
-Caveman mode for [pi](https://github.com/mariozechner/pi-coding-agent), packaged as an independent pi package.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![pi package](https://img.shields.io/badge/pi-package-blue)](https://github.com/mariozechner/pi-coding-agent)
+[![Version](https://img.shields.io/badge/version-0.1.0-green)](package.json)
 
-Based on [`JuliusBrussee/caveman`](https://github.com/JuliusBrussee/caveman): fewer output tokens, same technical substance.
+Ultra-compressed communication mode for [`pi`](https://github.com/mariozechner/pi-coding-agent): fewer tokens, same technical substance.
+
+`pi-caveman` packages the original [`JuliusBrussee/caveman`](https://github.com/JuliusBrussee/caveman) prompt/skills as a native pi package with persistent modes, slash commands, and bundled helper skills.
+
+## Why
+
+Coding agents often spend tokens on polite filler. Caveman mode removes filler while preserving exact technical meaning.
+
+```text
+Before: Sure! I'd be happy to help. The issue is likely caused by...
+After: Bug in auth middleware. Token expiry check use `<` not `<=`. Fix:
+```
 
 ## Features
 
-- Persistent caveman response mode
-- Intensity switching: `lite`, `full`, `ultra`, `wenyan-lite`, `wenyan`, `wenyan-ultra`
-- pi slash commands
-- Ships caveman skills for commit messages, code review, help, and memory compression
+- Persistent caveman response mode across turns
+- Intensity levels: `lite`, `full`, `ultra`, `wenyan-lite`, `wenyan-full`, `wenyan-ultra`
+- Slash commands for quick mode switching
+- Natural-language disable: `normal mode`, `stop caveman`, `caveman off`
+- Bundled skills:
+  - terse commit messages
+  - terse code review comments
+  - help/reference card
+  - markdown memory compression
 - Default mode via env/config
+- Upstream sync script for original caveman assets
 
 ## Install
 
-From local clone:
+### From GitHub
 
 ```bash
-pi install /absolute/path/to/pi-caveman
+pi install git:github.com/viartemev/caveman-pi-extension
 ```
 
 Project-local install:
 
 ```bash
-pi install -l /absolute/path/to/pi-caveman
+pi install -l git:github.com/viartemev/caveman-pi-extension
+```
+
+### From local clone
+
+```bash
+git clone git@github.com:viartemev/caveman-pi-extension.git
+pi install ./caveman-pi-extension
 ```
 
 Try without installing:
 
 ```bash
-pi -e /absolute/path/to/pi-caveman
-```
-
-From git after publishing:
-
-```bash
-pi install git:github.com/<user>/pi-caveman
-# or project-local
-pi install -l git:github.com/<user>/pi-caveman
+pi -e ./caveman-pi-extension
 ```
 
 ## Commands
 
-- `/caveman` — enable full mode
-- `/caveman lite|full|ultra|wenyan-lite|wenyan|wenyan-ultra` — switch mode
-- `/caveman off` — disable
-- `/caveman-help` — show reference card
-- `/caveman-commit [context]` — generate terse Conventional Commit message
-- `/caveman-review [context]` — generate one-line actionable review comments
-- `/caveman-compress <filepath>` — compress markdown/memory file
+| Command | Action |
+| --- | --- |
+| `/caveman` | Enable default `full` mode |
+| `/caveman lite` | Tight but normal grammar |
+| `/caveman full` | Classic caveman: fragments, no filler |
+| `/caveman ultra` | Maximum terse technical shorthand |
+| `/caveman wenyan-lite` | Semi-classical terse style |
+| `/caveman wenyan-full` | Classical terse style |
+| `/caveman wenyan-ultra` | Extreme classical compression |
+| `/caveman off` | Disable caveman mode |
+| `/caveman-help` | Show quick reference |
+| `/caveman-commit [context]` | Generate terse Conventional Commit message |
+| `/caveman-review [context]` | Generate one-line actionable review comments |
+| `/caveman-compress <filepath>` | Compress markdown/memory file |
 
 Natural-language disable also works:
 
@@ -76,52 +101,56 @@ export CAVEMAN_DEFAULT_MODE=ultra
 { "defaultMode": "lite" }
 ```
 
-Use `off` to disable auto-activation while keeping commands available.
+Use `off` to keep commands installed but disable auto-activation.
+
+## Package layout
+
+```text
+extensions/caveman.ts       # pi extension adapter
+skills/*/SKILL.md           # bundled caveman skills
+caveman-compress/SKILL.md   # memory compression skill
+caveman-compress/scripts/   # compression helper scripts
+scripts/sync-upstream.sh    # syncs upstream caveman assets
+vendor/caveman              # upstream git submodule
+package.json                # pi package manifest
+```
+
+## How it works
+
+The pi extension hooks into:
+
+- `resources_discover` — exposes bundled skills
+- `session_start` — restores mode and status badge
+- `input` — handles disable phrases
+- `before_agent_start` — injects active caveman rules every turn
+- `registerCommand` — registers slash commands
 
 ## Updating from upstream caveman
 
-This repo links upstream as git submodule:
+This repo tracks upstream as a git submodule:
 
 ```text
 vendor/caveman -> https://github.com/JuliusBrussee/caveman
 ```
 
-Update bundled skills/scripts from upstream:
+Update bundled skills/scripts:
 
 ```bash
 git submodule update --init --recursive
 npm run update:upstream
 ```
 
-This pulls latest `vendor/caveman`, then syncs only pi-needed assets into this package:
+This syncs pi-needed assets only:
 
 - `skills/caveman*`
 - `caveman-compress/SKILL.md`
 - `caveman-compress/scripts/*`
 
-The pi adapter itself stays in `extensions/caveman.ts`.
+The pi adapter stays in `extensions/caveman.ts`.
 
-## Package layout
+## License
 
-```text
-extensions/caveman.ts       # pi extension adapter
-vendor/caveman              # upstream repo submodule
-scripts/sync-upstream.sh    # copies upstream assets into package
-skills/*/SKILL.md           # synced caveman skills
-caveman-compress/SKILL.md   # synced compression skill
-caveman-compress/scripts/   # synced compression helper scripts
-package.json                # pi package manifest
-```
-
-## Notes
-
-This package adapts caveman to pi events:
-
-- `resources_discover` exposes bundled skills
-- `session_start` restores mode and status badge
-- `input` handles disable phrases
-- `before_agent_start` injects active caveman rules each turn
-- `registerCommand` adds slash commands
+MIT. See [LICENSE](LICENSE).
 
 ## Attribution
 

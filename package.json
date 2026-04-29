@@ -1,5 +1,5 @@
 {
-  "name": "pi-caveman",
+  "name": "caveman-pi-extension",
   "version": "0.1.0",
   "description": "Caveman mode for pi: ultra-compressed responses, terse commits, terse reviews, and memory compression.",
   "type": "module",
@@ -19,10 +19,10 @@
     "README.md",
     "LICENSE"
   ],
-  "homepage": "https://github.com/JuliusBrussee/caveman",
+  "homepage": "https://github.com/viartemev/caveman-pi-extension#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/JuliusBrussee/caveman"
+    "url": "git+https://github.com/viartemev/caveman-pi-extension.git"
   },
   "scripts": {
     "sync:upstream": "bash scripts/sync-upstream.sh",
