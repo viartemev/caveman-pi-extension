@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![pi package](https://img.shields.io/badge/pi-package-blue)](https://github.com/mariozechner/pi-coding-agent)
-[![Version](https://img.shields.io/badge/version-0.1.0-green)](package.json)
+[![Version](https://img.shields.io/badge/version-0.2.0-green)](package.json)
 
 Ultra-compressed communication mode for [`pi`](https://github.com/mariozechner/pi-coding-agent): fewer tokens, same technical substance.
 
@@ -26,8 +26,8 @@ After: Bug in auth middleware. Token expiry check use `<` not `<=`. Fix:
 - Bundled skills:
   - terse commit messages
   - terse code review comments
-  - help/reference card
   - markdown memory compression
+- Static `/caveman-help` command without model call
 - Default mode via env/config
 - Upstream sync script for original caveman assets
 
@@ -70,7 +70,8 @@ pi -e ./caveman-pi-extension
 | `/caveman wenyan-full` | Classical terse style |
 | `/caveman wenyan-ultra` | Extreme classical compression |
 | `/caveman off` | Disable caveman mode |
-| `/caveman-help` | Show quick reference |
+| `/caveman-default <mode>` | Save default mode to `~/.config/caveman/config.json` |
+| `/caveman-help` | Show quick reference without model call |
 | `/caveman-commit [context]` | Generate terse Conventional Commit message |
 | `/caveman-review [context]` | Generate one-line actionable review comments |
 | `/caveman-compress <filepath>` | Compress markdown/memory file |
@@ -106,8 +107,9 @@ Use `off` to keep commands installed but disable auto-activation.
 ## Package layout
 
 ```text
-extensions/caveman.ts       # pi extension adapter
-skills/*/SKILL.md           # bundled caveman skills
+extensions/caveman.ts       # pi extension adapter + compact mode prompts
+skills/caveman-commit       # terse commit skill
+skills/caveman-review       # terse review skill
 caveman-compress/SKILL.md   # memory compression skill
 caveman-compress/scripts/   # compression helper scripts
 scripts/sync-upstream.sh    # syncs upstream caveman assets
@@ -119,11 +121,12 @@ package.json                # pi package manifest
 
 The pi extension hooks into:
 
-- `resources_discover` — exposes bundled skills
 - `session_start` — restores mode and status badge
-- `input` — handles disable phrases
-- `before_agent_start` — injects active caveman rules every turn
+- `input` — handles enable/disable phrases
+- `before_agent_start` — injects compact active-mode rules every turn
 - `registerCommand` — registers slash commands
+
+Skills are exposed by `package.json` manifest, not by extension runtime discovery.
 
 ## Updating from upstream caveman
 
@@ -145,6 +148,8 @@ This syncs pi-needed assets only:
 - `skills/caveman*`
 - `caveman-compress/SKILL.md`
 - `caveman-compress/scripts/*`
+
+Only `caveman-commit`, `caveman-review`, and `caveman-compress` are loaded as pi skills by default. Base caveman/help prompts remain in repo for upstream sync/reference; extension handles them directly.
 
 The pi adapter stays in `extensions/caveman.ts`.
 
