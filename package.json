@@ -1,0 +1,43 @@
+{
+  "name": "pi-caveman",
+  "version": "0.1.0",
+  "description": "Caveman mode for pi: ultra-compressed responses, terse commits, terse reviews, and memory compression.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "caveman",
+    "skills",
+    "productivity"
+  ],
+  "files": [
+    "extensions/",
+    "skills/",
+    "caveman-compress/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "homepage": "https://github.com/JuliusBrussee/caveman",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JuliusBrussee/caveman"
+  },
+  "scripts": {
+    "sync:upstream": "bash scripts/sync-upstream.sh",
+    "update:upstream": "git submodule update --remote --merge vendor/caveman && bash scripts/sync-upstream.sh"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/caveman.ts"
+    ],
+    "skills": [
+      "./skills",
+      "./caveman-compress"
+    ]
+  }
+}
